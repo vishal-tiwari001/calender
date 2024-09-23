@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom Booking Calendar</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        color: #333;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: white;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      #calendar-container {
+        margin: 20px 0;
+      }
+
+      #time-slots {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      #time-slots button {
+        margin: 10px;
+        padding: 10px 20px;
+        background-color: #ffffff;
+        color: #333;
+        border: 1px solid #d9e4ff;
+        border-radius: 24px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        width: 100px;
+        text-align: center;
+      }
+
+      #time-slots button:hover {
+        background-color: #b3d9ff;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      #time-slots h3 {
+        width: 100%;
+        text-align: center;
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      /* Calendar Customization */
+      .flatpickr-calendar {
+        width: 100%;
+        max-width: 400px;
+        margin: auto;
+      }
+
+      .flatpickr-day {
+        border-radius: 8px;
+        margin: 3px;
+        height: 40px;
+        line-height: 40px;
+        width: 40px;
+        font-weight: bold;
+        color: #333;
+        transition: background-color 0.3s, transform 0.2s;
+      }
+
+      .flatpickr-day.selected,
+      .flatpickr-day.available {
+        background-color: #4caf50;
+        color: white;
+        border-radius: 12px;
+      }
+
+      .flatpickr-day:hover {
+        background-color: #b3d9ff;
+        transform: scale(1.1);
+      }
+
+      /* Navigation Arrows */
+      .flatpickr-next-month,
+      .flatpickr-prev-month {
+        background: transparent;
+        border: none;
+        font-size: 20px;
+        color: #333;
+        margin: 0 10px;
+        cursor: pointer;
+      }
+
+      .flatpickr-next-month:hover,
+      .flatpickr-prev-month:hover {
+        color: #4caf50;
+      }
+
+      .flatpickr-months {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+      }
+
+      .flatpickr-month {
+        font-weight: bold;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Book an Appointment</h1>
+      <div id="calendar-container">
+        <input type="text" id="calendar-input" placeholder="Select a date" />
+      </div>
+      <div id="time-slots" style="display: none"></div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+      const token =
+        "eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzI2ODQ3NDk0LCJqdGkiOiIzMjc1MzRlNi02MzYyLTRiYjYtYTViYS03NzUyMTAyNjM1MjEiLCJ1c2VyX3V1aWQiOiI3NDc5MTJhZC02ZmIwLTQ2NjQtOWI2Ni1iZGRiZjRhMDA2YTgifQ.1EcKIHV32OodNCC1HsgFK3dlLELxyR6EQStlOnTosJiwYeyIa-wHz628haJX_tmcq2aqB1cEO7HIskwdWsZnfQ";
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+
+      let userUri = "";
+      let availabilitySchedules = [];
+
+      function fetchData(url) {
+        return fetch(url, { headers })
+          .then((response) => response.json())
+          .catch((error) => console.error("Fetch Error:", error));
+      }
+
+      function initializeCalendar() {
+        const availableDates = getAvailableDates();
+
+        flatpickr("#calendar-input", {
+          inline: true,
+          minDate: "today",
+          dateFormat: "Y-m-d",
+          enable: availableDates,
+          onChange(selectedDates, dateStr) {
+            showTimeSlots(dateStr);
+          },
+        });
+      }
+
+      function getAvailableDates() {
+        const availableDates = [];
+        const today = new Date();
+
+        for (let i = 0; i < 30; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() + i);
+
+          if (isDateAvailable(date)) {
+            availableDates.push(date.toISOString().split("T")[0]);
+          }
+        }
+
+        return availableDates;
+      }
+
+      function isDateAvailable(date) {
+        const dayOfWeek = date
+          .toLocaleString("en-US", { weekday: "long" })
+          .toLowerCase();
+
+        return availabilitySchedules.some((schedule) =>
+          schedule.rules.some(
+            (rule) => rule.wday === dayOfWeek && rule.intervals.length > 0
+          )
+        );
+      }
+
+      function showTimeSlots(dateStr) {
+        const timeSlotsElement = document.getElementById("time-slots");
+        timeSlotsElement.style.display = "flex";
+        timeSlotsElement.innerHTML = "<h3>Available Time Slots</h3>";
+
+        const selectedDate = new Date(dateStr);
+        const dayOfWeek = selectedDate
+          .toLocaleString("en-US", { weekday: "long" })
+          .toLowerCase();
+
+        availabilitySchedules.forEach((schedule) => {
+          schedule.rules.forEach((rule) => {
+            if (rule.wday === dayOfWeek && rule.intervals.length > 0) {
+              rule.intervals.forEach((interval) => {
+                const fromTime = interval.from;
+                const toTime = interval.to;
+                const button = document.createElement("button");
+                button.textContent = `${fromTime} - ${toTime}`;
+                button.onclick = () =>
+                  alert(
+                    `Booking slot for ${dateStr} from ${fromTime} to ${toTime}`
+                  );
+                timeSlotsElement.appendChild(button);
+              });
+            }
+          });
+        });
+      }
+
+      // Fetch user and availability data
+      fetchData("https://api.calendly.com/users/me")
+        .then((data) => {
+          userUri = data.resource.uri;
+          console.log(data, "data");
+          return fetchData(
+            `https://api.calendly.com/user_availability_schedules?user=${userUri}`
+          );
+        })
+        .then((data) => {
+          console.log(data, "collection data");
+
+          availabilitySchedules = data.collection || [];
+          initializeCalendar();
+        })
+        .catch((error) => console.error("Error:", error));
+    </script>
+  </body>
+</html>
